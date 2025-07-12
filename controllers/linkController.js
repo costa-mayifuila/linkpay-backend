@@ -1,22 +1,48 @@
-import Link from '../models/Link.js'; // ou o nome do seu modelo de link
-import { Request, Response } from 'express';
+import Link from '../models/Link.js';
 
-export const listarLinksDoUsuario = async (req = Request, res = Response) => {
+// Função auxiliar para gerar slug
+function gerarSlug(titulo) {
+  return (
+    titulo
+      .toLowerCase()
+      .replace(/[^\w\s-]/g, "")
+      .replace(/\s+/g, "-")
+      .substring(0, 50) +
+    "-" +
+    Date.now().toString().slice(-4)
+  );
+}
+
+// ✅ Criar novo link de pagamento
+export const criarLink = async (req, res) => {
   try {
-    // Pega o ID do usuário logado, que estará disponível depois da autenticação
-    const usuarioId = req.user.id; // Aqui é esperado que o middleware de autenticação tenha atribuído o usuário ao objeto req
+    const { title, amount } = req.body;
 
-    // Busca todos os links associados ao usuário logado
-    const links = await Link.find({ user: usuarioId }); // Ajuste conforme o modelo do seu Link
+    // Verifica se o token JWT foi processado e o ID do usuário está no req
+    const userId = req.user?._id || req.user?.id;
+    if (!userId) return res.status(401).json({ message: "Usuário não autenticado." });
 
-    if (!links.length) {
-      return res.status(404).json({ message: 'Nenhum link encontrado para o usuário' });
-    }
+    const slug = gerarSlug(title);
 
-    // Retorna os links encontrados
-    res.json(links);
+    const novoLink = new Link({
+      title,
+      amount,
+      slug,
+      user: userId,
+      status: "aguardando",
+      recebidoLiquido: 0,
+      criadoPor: userId,
+    });
+
+    await novoLink.save();
+
+    res.status(201).json({
+      success: true,
+      message: "Link criado com sucesso!",
+      link: novoLink, // ← Aqui o frontend pega o .slug
+    });
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: 'Erro ao buscar os links' });
+    console.error("❌ Erro ao criar link:", error);
+    res.status(500).json({ message: "Erro ao criar link." });
   }
 };
