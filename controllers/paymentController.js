@@ -9,13 +9,23 @@ dotenv.config();
 
 // 📌 Gerar token para pagamento de um link individual
 export const solicitarToken = async (req, res) => {
-  const { reference, amount, afiliadoId } = req.body;
+  const {
+    reference,
+    amount,
+    afiliadoId,
+    nomeCliente,
+    emailCliente,
+    whatsappCliente,
+  } = req.body;
 
-  if (!reference || !amount) {
-    return res.status(400).json({ message: "Referência e valor são obrigatórios." });
+  if (!reference || !amount || !nomeCliente || !emailCliente || !whatsappCliente) {
+    return res.status(400).json({
+      message: "Todos os campos são obrigatórios: referência, valor, nome, e-mail e WhatsApp.",
+    });
   }
 
   try {
+    // ✅ Solicita frameToken da EMIS
     const emisResponse = await axios.post(
       "https://pagamentonline.emis.co.ao/online-payment-gateway/webframe/v1/frameToken",
       {
@@ -32,9 +42,21 @@ export const solicitarToken = async (req, res) => {
     const frameToken = emisResponse.data.token;
     const frameUrl = `https://pagamentonline.emis.co.ao/online-payment-gateway/webframe?frameToken=${frameToken}`;
 
+    // ✅ Registra afiliado no link, se houver
     if (afiliadoId) {
       await PaymentLink.findOneAndUpdate({ slug: reference }, { afiliadoId });
     }
+
+    // ✅ Salva os dados do cliente no link
+    await PaymentLink.findOneAndUpdate(
+      { slug: reference },
+      {
+        nomeCliente,
+        emailCliente,
+        whatsappCliente,
+      },
+      { new: true }
+    );
 
     return res.json({ frameUrl, token: frameToken });
   } catch (error) {

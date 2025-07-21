@@ -14,6 +14,11 @@ const paymentLinkSchema = new mongoose.Schema({
   createdAt: { type: Date, default: Date.now },
   userId: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
 
+  // 📌 Dados do cliente (novo)
+  nomeCliente: { type: String },
+  emailCliente: { type: String },
+  whatsappCliente: { type: String },
+
   // 📌 Dados da transação
   transactionDetails: {
     type: Object,
